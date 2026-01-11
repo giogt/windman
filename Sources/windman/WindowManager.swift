@@ -70,9 +70,17 @@ class WindowManager: NSViewController {
         let windows = try WindowFinder.all()
         for window in windows {
            if window.id == windowId {
-               let element = try WinUtil.toUIElement(window: window)
-               let _ = try WinUtil.setNewOrigin(element: element, newOrigin: point)
+               let _ = try WinUtil.move(window, toPosition: point)
            }
+        }
+    }
+
+    func focus(withId id: Int) throws {
+        let windows = try WindowFinder.all()
+        for window in windows {
+            if window.id == id {
+                try WinUtil.focus(window)
+            }
         }
     }
 
@@ -80,35 +88,33 @@ class WindowManager: NSViewController {
         let windows = try WindowFinder.all()
         for window in windows {
            if window.id == windowId {
-               let element = try WinUtil.toUIElement(window: window)
-               let _ = try WinUtil.setNewSize(element: element, newSize: size)
+               let _ = try WinUtil.resize(window, newSize: size)
            }
         }
     }
 }
 
-struct WinUtil {
-    static func toUIElement(window: Window) throws -> AXUIElement {
-        let appRef = AXUIElementCreateApplication(window.pid)
-        var value: AnyObject?
-        if AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &value) != .success {
-            throw WindowFindError.cannotGetElementAttributes
+private struct WinUtil {
+
+    static func focus(_ window: Window) throws {
+        let element = try WinUtil.uiElement(fromWindow: window)
+        if AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue) != .success {
+            fputs("failed to focus window\n", stderr)
+            throw WindowFindError.setSizeFailed
         }
-        let uiElements = value as! [AXUIElement]
-        let element = uiElements.first!
-        // Set timeout per element
-        AXUIElementSetMessagingTimeout(element, 2.0)
-        return element
+        NSRunningApplication(processIdentifier: window.pid)?.activate()
     }
 
-    static func setNewOrigin(element: AXUIElement, newOrigin: Point) throws -> Bool {
+    static func move(_ window: Window, toPosition: Point) throws -> Bool {
+        let element = try WinUtil.uiElement(fromWindow: window)
+
         // check if attribute is settable
         var settable: DarwinBoolean = false
         AXUIElementIsAttributeSettable(element, kAXPositionAttribute as CFString, &settable)
         if !settable.boolValue { return false }
 
         // set new origin
-        var newOrigin = CGPoint(x: newOrigin.x, y: newOrigin.y)
+        var newOrigin = CGPoint(x: toPosition.x, y: toPosition.y)
         let position = AXValueCreate(AXValueType(rawValue: kAXValueCGPointType)!, &newOrigin)!
         if AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, position) != .success {
             fputs("failed to set position\n", stderr)
@@ -117,7 +123,9 @@ struct WinUtil {
         return true
     }
 
-    static func setNewSize(element: AXUIElement, newSize: Size) throws -> Bool {
+    static func resize(_ window: Window, newSize: Size) throws -> Bool {
+        let element = try WinUtil.uiElement(fromWindow: window)
+
         // check if attribute is settable
         var settable: DarwinBoolean = false
         AXUIElementIsAttributeSettable(element, kAXSizeAttribute as CFString, &settable)
@@ -131,5 +139,18 @@ struct WinUtil {
             throw WindowFindError.setSizeFailed
         }
         return true
+    }
+
+    private static func uiElement(fromWindow window: Window) throws -> AXUIElement {
+        let appRef = AXUIElementCreateApplication(window.pid)
+        var value: AnyObject?
+        if AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &value) != .success {
+            throw WindowFindError.cannotGetElementAttributes
+        }
+        let uiElements = value as! [AXUIElement]
+        let element = uiElements.first!
+        // Set timeout per element
+        AXUIElementSetMessagingTimeout(element, 2.0)
+        return element
     }
 }

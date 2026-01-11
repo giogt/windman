@@ -39,6 +39,7 @@ enum CliParseError: LocalizedError {
 enum Action: String, CaseIterable, ExpressibleByArgument {
     case list
     case move
+    case focus
     case resize
 
     var help: ArgumentHelp? {
@@ -47,6 +48,8 @@ enum Action: String, CaseIterable, ExpressibleByArgument {
                 return "List all windows"
             case .move:
                 return "Move the window to the specified position (requires `posx` and `posx` options)"
+            case .focus:
+                return "Focus the window (requires `windowId` option)"
             case .resize:
                 return "Resize the window to the specified size (requires `width` and `height` options)"
             }
@@ -77,6 +80,9 @@ struct Windman {
             guard let x = cliArgs.x else { throw CliParseError.missingMandatoryOption(option: "x", action: action.rawValue) }
             guard let y = cliArgs.y else { throw CliParseError.missingMandatoryOption(option: "y", action: action.rawValue) }
             try wm.moveTo(windowId: windowId, point: Point(x: x, y: y))
+        case .focus:
+            guard let windowId = cliArgs.windowId else { throw CliParseError.missingMandatoryOption(option: "windowId", action: action.rawValue) }
+            try wm.focus(withId: windowId)
         case .resize:
             guard let windowId = cliArgs.windowId else { throw CliParseError.missingMandatoryOption(option: "windowId", action: action.rawValue) }
             guard let width = cliArgs.width else { throw CliParseError.missingMandatoryOption(option: "width", action: action.rawValue) }
