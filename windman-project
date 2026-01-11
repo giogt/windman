@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Swift Project Build Script
+# Manages building, running, and cleaning a Swift project
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to display usage
+usage() {
+    echo "Usage: $0 [OPTION] [ARGS...]"
+    echo "Options:"
+    echo "  build       Build the Swift project"
+    echo "  run [args]  Build and run the Swift project (passes args to the executable)"
+    echo "  clean       Clean build artifacts"
+    echo "  manual      Generate man pages using swift package plugin"
+    echo "  help        Display this help message"
+    exit 1
+}
+
+# Function to build the project
+build() {
+    echo -e "${GREEN}Building Swift project...${NC}"
+    swift build
+    echo -e "${GREEN}Build completed successfully${NC}"
+}
+
+# Function to run the project
+run() {
+    echo -e "${GREEN}Building and running Swift project...${NC}"
+    shift  # Remove the first argument (run)
+    swift run windman "$@"
+}
+
+# Function to clean the project
+clean() {
+    echo -e "${YELLOW}Cleaning build artifacts...${NC}"
+    swift package clean
+    echo -e "${GREEN}Clean completed successfully${NC}"
+}
+
+# Function to generate man pages
+generate_manual() {
+    echo -e "${GREEN}Generating man pages...${NC}"
+    swift package plugin generate-manual
+    echo -e "${GREEN}Man pages generated successfully${NC}"
+}
+
+# Main script logic
+if [ $# -eq 0 ]; then
+    echo -e "${RED}Error: No option provided${NC}"
+    usage
+fi
+
+case "$1" in
+    build)
+        build
+        ;;
+    run)
+        run "$@"
+        ;;
+    clean)
+        clean
+        ;;
+    manual)
+        generate_manual
+        ;;
+    help)
+        usage
+        ;;
+    *)
+        echo -e "${RED}Error: Invalid option '$1'${NC}"
+        usage
+        ;;
+esac
